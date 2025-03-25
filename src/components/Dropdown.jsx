@@ -20,11 +20,22 @@ export default function Dropdown() {
     const [dropdownVisibility, setDropdownVisibility] = useState(false);
     const [currency, setCurrency] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
     function handleFromCurrency(data) {
         setCurrency(data.code);
         setSearchInput(data.name);
         setFlag(data.flag);
+
+        setDropdownVisibility(false);
+    }
+
+    function onFocus() {
+        setIsSearching(true);
+    }
+
+    function onBlur() {
+        setIsSearching(false);
     }
 
     function handleSearchInput(evt) {
@@ -32,9 +43,10 @@ export default function Dropdown() {
 
         if (evt.target.value !== "") {
             setFilteredList(() => {
+                let userInput = evt.target.value.toLowerCase();
                 return countryLists.filter((list) => {
                     return Object.values(list).some((value) => {
-                        return value.toString().toLowerCase().includes(evt.target.value);
+                        return value.toString().toLowerCase().includes(userInput);
                     });
                 });
             });
@@ -43,10 +55,24 @@ export default function Dropdown() {
         }
     }
 
+    function storeOption(countryData) {
+        localStorage.setItem('currency', JSON.stringify(countryData));
+    }
+
+    function loadOption() {
+        let storedCountryData = JSON.parse(localStorage.getItem('currency'));
+        storedCountryData ? handleFromCurrency(storedCountryData) : handleFromCurrency(defaultSelection);
+    }
+
+    function closeDropdown() {
+        setDropdownVisibility(false)
+        loadOption();
+    }
+
     useEffect(() => {
         try {
             setIsLoading(true);
-            handleFromCurrency(defaultSelection);
+            loadOption();
         } catch (err) {
             console.error(err);
         } finally {
@@ -57,52 +83,60 @@ export default function Dropdown() {
     return (
         <div className="w-full md:w-[320px] p-3">
             <div
-                className={`relative shadow-md px-3 flex items-center border-2 ${dropdownVisibility ? 'border-amber-500' : 'border-transparent'}`}>
-                {isLoading ? <FaMagnifyingGlass /> : <img src={flag} width={24} height={24} alt="flag" />}
-                <h3 className="ml-2 font-bold">{currency}</h3>
+                className={`relative flex items-center  bg-white hover:bg-slate-50 shadow-md px-3 cursor-pointer border-2 ${dropdownVisibility ? 'border-amber-500' : 'border-transparent'}`}>
+                {isSearching && <FaMagnifyingGlass />}
+                {!isSearching && <img src={flag} width={24} height={24} alt="flag" />}
+                {!isSearching && <h3 className="ml-2 font-bold">{currency}</h3>}
                 <input
                     className="w-full h-[48px] scroll-hidden px-3 overscroll-none focus:outline-none"
                     value={searchInput}
                     placeholder='Type to search..'
                     onChange={handleSearchInput}
-                    onClick={() => { setSearchInput(''); setDropdownVisibility(true) }} />
+                    onFocus={onFocus}
+                    onBlur={onBlur}
+                    onClick={() => setDropdownVisibility(true)} />
 
-                {dropdownVisibility && <span className="absolute right-3 cursor-pointer"
-                    onClick={() => setDropdownVisibility(false)}>
-                    <MdOutlineClose />
-                </span>}
+                {!dropdownVisibility ?
+                    <button className="absolute right-2">
+                        <RxCaretDown />
+                    </button>
+                    : <button className="absolute right-2 cursor-pointer"
+                        onClick={closeDropdown}>
+                        <MdOutlineClose />
+                    </button>}
             </div>
 
             {/* dropdown contents */}
-            <ul className="shadow-lg" onClick={() => setDropdownVisibility(false)}>
+            <ul className="shadow-lg  max-h-[290px] overflow-scroll">
                 {/* dropdown items */}
-                {filteredList && filteredList.map((country, index) => {
-                    return (
-                        <li
-                            key={`from${index}`}
-                            className={`${!dropdownVisibility ? 'hidden' : ''} p-3 cursor-pointer bg-white hover:bg-slate-50`}
-                            onClick={() => handleFromCurrency(country)}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center text-nowrap overflow-hidden">
-                                    <img src={country.flag} width={24} height={24} alt="flag" />
-                                    <h4 className="ml-5 mr-1">
-                                        {country.code}
-                                    </h4>
-                                    <h4 className="text-gray-500">
-                                        - {country.name}
-                                    </h4>
+                {filteredList.length > 0 ?
+                    filteredList && filteredList.map((country, index) => {
+                        return (
+                            <li
+                                key={`from${index}`}
+                                className={`${!dropdownVisibility ? 'hidden' : ''} p-3 cursor-pointer bg-white hover:bg-slate-50`}
+                                onClick={() => { handleFromCurrency(country); storeOption(country); }}>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center text-nowrap overflow-hidden">
+                                        <img src={country.flag} width={24} height={24} alt="flag" />
+                                        <h4 className="ml-5 mr-1">
+                                            {country.code}
+                                        </h4>
+                                        <h4 className="text-gray-500">
+                                            - {country.name}
+                                        </h4>
 
-                                </div>
+                                    </div>
 
-                                <div>
-                                    {index === 0 ? <>
-                                        {!dropdownVisibility ? <RxCaretDown /> : <RxCaretUp />}
-                                    </> : null}
+                                    <div>
+                                        {index === 0 ? <>
+                                            {!dropdownVisibility ? <RxCaretDown /> : <RxCaretUp />}
+                                        </> : null}
+                                    </div>
                                 </div>
-                            </div>
-                        </li>
-                    )
-                })}
+                            </li>
+                        )
+                    }) : dropdownVisibility && <div className="flex items-center justify-center p-4"><p>{'no result found'}</p></div>}
             </ul>
         </div>
     )
