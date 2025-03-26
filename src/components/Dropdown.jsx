@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import countryLists from '../countries.json';
 import { RxCaretDown, RxCaretUp } from 'react-icons/rx';
 import { MdOutlineClose } from "react-icons/md";
@@ -19,8 +19,9 @@ export default function Dropdown() {
     const [filteredList, setFilteredList] = useState(countryLists);
     const [dropdownVisibility, setDropdownVisibility] = useState(false);
     const [currency, setCurrency] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isSearching, setIsSearching] = useState(false);
+    const inputFocus = useRef(null);
 
     function handleFromCurrency(data) {
         setCurrency(data.code);
@@ -35,7 +36,7 @@ export default function Dropdown() {
     }
 
     function onBlur() {
-        setIsSearching(false);
+        setTimeout(() => { setDropdownVisibility(false); loadOption(); setIsSearching(false); }, 10);
     }
 
     function handleSearchInput(evt) {
@@ -65,8 +66,11 @@ export default function Dropdown() {
     }
 
     function closeDropdown() {
-        setDropdownVisibility(false)
-        loadOption();
+        onBlur();
+    }
+
+    function autoFocusInput() {
+        inputFocus.current.focus();
     }
 
     useEffect(() => {
@@ -80,13 +84,21 @@ export default function Dropdown() {
         }
     }, []);
 
+    useEffect(() => {
+        clearTimeout(() => onBlur(), 10);
+    }, []);
+
     return (
         <div className="w-full md:w-[320px] p-3">
             <div
-                className={`relative flex items-center  bg-white hover:bg-slate-50 shadow-md px-3 cursor-pointer border-2 ${dropdownVisibility ? 'border-amber-500' : 'border-transparent'}`}>
+                className={`relative flex items-center  bg-white hover:bg-slate-50 shadow-md px-3 cursor-pointer border-2 ${dropdownVisibility ? 'border-amber-500' : 'border-transparent'}`}
+                onClick={() => { setDropdownVisibility(true); autoFocusInput(); }}>
                 {isSearching && <FaMagnifyingGlass />}
-                {!isSearching && <img src={flag} width={24} height={24} alt="flag" />}
-                {!isSearching && <h3 className="ml-2 font-bold">{currency}</h3>}
+                {/* lazy loading */}
+                {!searchInput && isLoading ? <span className="w-6 h-4 bg-gray-400 animate-pulse"></span> : null}
+                {!isSearching && searchInput ? <img src={flag} width={24} height={24} alt="flag" /> : null}
+                {!isSearching && searchInput ? <h3 className="ml-2 font-bold">{currency}</h3> : null}
+
                 <input
                     className="w-full h-[48px] scroll-hidden px-3 overscroll-none focus:outline-none"
                     value={searchInput}
@@ -94,7 +106,7 @@ export default function Dropdown() {
                     onChange={handleSearchInput}
                     onFocus={onFocus}
                     onBlur={onBlur}
-                    onClick={() => setDropdownVisibility(true)} />
+                    ref={inputFocus} />
 
                 {!dropdownVisibility ?
                     <button className="absolute right-2">
